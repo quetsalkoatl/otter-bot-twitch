@@ -1,8 +1,10 @@
 module.exports = {
-    user: "",
-    token: "",
+    user: "BotterChatsLive",
+    token: "***",
     channels: [
-        ""
+        "JimGamesLive"
     ],
-    dcTimeout: 1000 * 60 * 3
+    dcTimeout: 1000 * 60 * 3,
+    ytApiKey: "***",
+    ytPlaylistId: "",
 };
