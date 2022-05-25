@@ -3,5 +3,6 @@ module.exports = {
     token: "",
     channels: [
         ""
-    ]
+    ],
+    dcTimeout: 1000 * 60 * 3
 };
