@@ -1,5 +1,7 @@
 const conf = require('./config.js');
 const tmi = require('tmi.js');
+// const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
 
 // Define configuration options
 const opts = {
@@ -9,6 +11,8 @@ const opts = {
   },
   channels: conf.channels
 };
+
+let discordRunning = false;
 
 const msgs = [
   "You called me?",
@@ -26,10 +30,14 @@ const msgs = [
   "Your music taste is impeccable!",
   "Sing my angel of music 🎶",
   "Somewhere over the rainbow otters sing",
-  "Hello from the otter side"
+  "Hello from the otter side",
+  "BROHAAA!! 💜"
 ];
 
-const discordMessage = "* Join Jim's otter squad on Discord: https://discord.gg/nF5mPR5";
+const discordMessage = "* If you want to request a song or just hang out, join Jim's otter squad on Discord: https://discord.gg/nF5mPR5";
+const uaMessage = "* If you want to donate to support the people in Ukraine visit https://www.supportukraine.co for a list of organizations 🇺🇦";
+
+const ytUrl = `https://www.googleapis.com/youtube/v3/playlistItems?key=${conf.ytApiKey}&part=snippet&playlistId=${conf.ytPlaylistId}&maxResults=50`;
 
 // Create a client with our options
 const client = new tmi.client(opts);
@@ -53,22 +61,27 @@ function onMessageHandler (target, context, msg, self) {
   // Remove whitespace from chat message
   const messg = msg.trim();
   const user = context.username;
-  //console.log(`'${user}'`);
   if (user === 'streamlabs') {
     if (messg.includes("7D4KP5BYjX")) {
         client.say(target, "LINK CORRECTION: Join Jim's otter squad on Discord: https://discord.gg/nF5mPR5");
     }
     return;
   }
-
-  /*if (messg.toLowerCase() == "!discord") {
-      client.say(target, discordMessage);
+  
+  if (messg.includes("!discord")) {
+      client.say(target, "Join Jim's otter squad on Discord: https://discord.gg/nF5mPR5");
       return;
-  }*/
+  }
+   
+  if (messg.includes("!song") && conf.ytPlaylistId) {
+      fetchCurrentSongAndChat(target);
+  }
+  
+  if (messg.includes("!ua")) {
+      client.say(target, uaMessage);
+      return;
+  }
 
-  // return;
-
-  // If the command is known, let's execute it
   if (messg.toLowerCase().includes('otter')) {
     const otterMsg = msgs[Math.floor(Math.random()*msgs.length)];
     client.say(target, `@${user}: ${otterMsg} 🦦`);
@@ -76,6 +89,47 @@ function onMessageHandler (target, context, msg, self) {
       const otherMsg = messg.replace(/other/ig, 'otter');
       client.say(target, `@${user}, sorry to correct you: ${otherMsg} 🦦`);
   }*/
+}
+
+// Called every time the bot connects to Twitch chat
+function onConnectedHandler (addr, port) {
+  console.log(`* Connected to ${addr}:${port}`);
+  if (!discordRunning) {
+    discordRunning = true;
+    discord();
+  }
+}
+
+function discord() {
+    setTimeout(function() {
+        client.say(conf.channels[0], discordMessage);
+        discord();
+    }, conf.dcTimeout);
+}
+
+function fetchCurrentSongAndChat(target) {
+  fetch(ytUrl)
+      .then(resp => resp.json())
+      .then(json => {
+          const items = json.items;
+          if (json.items && json.items.length) {
+              const last = items[items.length - 1].snippet;
+              if (last && (last.title || (last.resourceId && last.resourceId.videoId))) {
+                  let song = "";
+                  if (last.title) {
+                      song += `'${last.title}' `;
+                  }
+                  if (last.resourceId && last.resourceId.videoId) {
+                      song += `(https://youtu.be/${last.resourceId.videoId})`;
+                  }
+                  client.say(target, `* We're currently listening to ${song}`);
+              }
+          }
+      })
+      .catch(error => {
+          console.log(error);
+          client.say(target, "* Command currently not available!");
+      });
 }
 
 function onSubHandler(channel, user, methods, msg, tags) {
@@ -112,17 +166,4 @@ function onCheerHandler(channel, tags, msg) {
     console.log('channel', channel);
     console.log('tags', tags);
     console.log('msg', msg);
-}
-
-// Called every time the bot connects to Twitch chat
-function onConnectedHandler (addr, port) {
-  console.log(`* Connected to ${addr}:${port}`);
-  discord();
-}
-
-function discord() {
-    setTimeout(function() {
-        client.say(conf.channels[0], discordMessage);
-        discord();
-    }, conf.dcTimeout);
 }
