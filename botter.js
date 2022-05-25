@@ -1,4 +1,4 @@
-const conf = require('./config.js');
+var conf = require('./config.js');
 const tmi = require('tmi.js');
 // const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
@@ -37,8 +37,6 @@ const msgs = [
 const discordMessage = "* If you want to request a song or just hang out, join Jim's otter squad on Discord: https://discord.gg/nF5mPR5";
 const uaMessage = "* If you want to donate to support the people in Ukraine visit https://www.supportukraine.co for a list of organizations 🇺🇦";
 
-const ytUrl = `https://www.googleapis.com/youtube/v3/playlistItems?key=${conf.ytApiKey}&part=snippet&playlistId=${conf.ytPlaylistId}&maxResults=50`;
-
 // Create a client with our options
 const client = new tmi.client(opts);
 
@@ -73,8 +71,9 @@ function onMessageHandler (target, context, msg, self) {
       return;
   }
    
-  if (messg.includes("!song") && conf.ytPlaylistId) {
+  if (messg.includes("!song")) {
       fetchCurrentSongAndChat(target);
+      return;
   }
   
   if (messg.includes("!ua")) {
@@ -108,6 +107,12 @@ function discord() {
 }
 
 function fetchCurrentSongAndChat(target) {
+  reloadConfig();
+  if (!conf.ytPlaylistId) {
+      client.say(target, "* Command currently not available!");
+      return;
+  }
+  const ytUrl = `https://www.googleapis.com/youtube/v3/playlistItems?key=${conf.ytApiKey}&part=snippet&playlistId=${conf.ytPlaylistId}&maxResults=50`;
   fetch(ytUrl)
       .then(resp => resp.json())
       .then(json => {
@@ -123,13 +128,20 @@ function fetchCurrentSongAndChat(target) {
                       song += `(https://youtu.be/${last.resourceId.videoId})`;
                   }
                   client.say(target, `* We're currently listening to ${song}`);
+                  return;
               }
           }
+          client.say(target, "* Something went wrong 😭");
       })
       .catch(error => {
           console.log(error);
-          client.say(target, "* Command currently not available!");
+          client.say(target, "* Something went wrong 😭");
       });
+}
+
+function reloadConfig() {
+    delete require.cache[require.resolve('./config.js')];
+    conf = require('./config.js');
 }
 
 function onSubHandler(channel, user, methods, msg, tags) {
